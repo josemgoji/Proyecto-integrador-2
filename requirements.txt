@@ -1,0 +1,12 @@
+fuzzywuzzy
+imblearn
+joblib
+matplotlib
+missingno
+numpy
+pandas
+scikit_learn
+scipy
+seaborn
+Unidecode
+openpyxl
