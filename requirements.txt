@@ -10,3 +10,4 @@ scipy
 seaborn
 Unidecode
 openpyxl
+geopy
