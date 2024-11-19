@@ -39,10 +39,15 @@ def add_time_series_col(client, historical_weather, electricity_prices, gas_pric
 
 def merge_datasets(train, client, historical_weather, electricity_prices, gas_prices):
     """Merge DataFrames train, client, historical weather, gas prices and electricity prices based on the datetime column."""
-    merged = train.merge(client, on='datetime', how='left') \
-                  .merge(historical_weather, on='datetime', how='left') \
-                  .merge(electricity_prices, on='datetime', how='left') \
-                  .merge(gas_prices, on='datetime', how='left')
+    merged = train.merge(historical_weather, on='datetime', how='left') \
+                  .merge(electricity_prices, on='datetime', how='left')
+    
+    # Add dt.floor('D')
+    merged['date'] = merged['datetime'].dt.floor('D')
+
+    merged = merged.merge(client, left_on='date', right_on='datetime', how='left') \
+                   .merge(gas_prices, left_on='date', right_on='datetime', how='left')
+
     return merged
 
 
@@ -87,10 +92,6 @@ def main():
     # Merge datasets
     merged_c = merge_datasets(train_c, client, historical_weather, electricity_prices, gas_prices)
     merged_p = merge_datasets(train_p, client, historical_weather, electricity_prices, gas_prices)
-
-    # Add dt.floor('D')
-    merged_c['date'] = merged_c['datetime'].dt.floor('D')
-    merged_p['date'] = merged_p['datetime'].dt.floor('D')
 
     # Reorder dataset columns
     merged_c = reorder_columns(merged_c)
