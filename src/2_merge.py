@@ -101,6 +101,10 @@ def main():
     merged_c = reorder_columns(merged_c)
     merged_p = reorder_columns(merged_p)
 
+    # Remove last row
+    merged_c = merged_c[:-1]
+    merged_p = merged_p[:-1]
+
     # Save datasets to pickle files
     save_datasets_to_pickle([merged_c, merged_p])
 
