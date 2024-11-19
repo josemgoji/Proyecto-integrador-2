@@ -44,9 +44,13 @@ def merge_datasets(train, client, historical_weather, electricity_prices, gas_pr
     
     # Add dt.floor('D')
     merged['date'] = merged['datetime'].dt.floor('D')
+    client['date'] = client['datetime'].dt.floor('D')
+    client = client.drop('datetime', axis=1)
+    gas_prices['date'] = gas_prices['datetime'].dt.floor('D')
+    gas_prices = gas_prices.drop('datetime', axis=1)
 
-    merged = merged.merge(client, left_on='date', right_on='datetime', how='left') \
-                   .merge(gas_prices, left_on='date', right_on='datetime', how='left')
+    merged = merged.merge(client, on='date', how='outer') \
+                   .merge(gas_prices, on='date', how='outer')
 
     return merged
 
