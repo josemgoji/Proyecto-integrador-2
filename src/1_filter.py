@@ -12,7 +12,7 @@ def load_datasets():
     """Load all datasets and return them as dataframes."""
     current_dir = os.getcwd()
     ROOT_PATH = os.path.dirname(current_dir)
-    sys.path.insert(1, current_dir)
+    sys.path.insert(1, ROOT_PATH)
     import root
     
     train = pd.read_csv(root.DIR_DATA_RAW + 'train.csv')
@@ -73,8 +73,8 @@ def filter_data(train, client, weather, is_business, product_type, county_code):
         (train['county'] == county_code)
     ]
     train = train.drop(['is_business', 'product_type', 'county'], axis=1)
-    train_c = train[train['is_consumption'] == 1]; train_c = train_c.drop(['is_consumption'], axis=1)
-    train_p = train[train['is_consumption'] == 0]; train_p = train_p.drop(['is_consumption'], axis=1)
+    train = train[train['is_consumption'] == 0]; train = train.drop(['is_consumption'], axis=1)
+    
 
     client = client[
         (client['is_business'] == is_business) &
@@ -86,14 +86,7 @@ def filter_data(train, client, weather, is_business, product_type, county_code):
     weather = weather[weather['county'] == county_code]
     weather = weather.drop(['county'], axis=1)
 
-    return train_c, train_p, client, weather
-
-
-def fill_missing_target_values(df, column):
-    """Sort by date and fill missing values by linear interpolation."""
-    df = df.sort_values(by='datetime')
-    df[column] = df[column].interpolate(method='linear', limit_direction='both')
-    return df
+    return train, client, weather
 
 
 def save_datasets_to_pickle(datasets, paths=None):
@@ -101,12 +94,11 @@ def save_datasets_to_pickle(datasets, paths=None):
     if paths == None:
         import root
         paths = [
-            root.DIR_DATA_STAGE + '1_single/train_consumption.pkl',
-            root.DIR_DATA_STAGE + '1_single/train_production.pkl',
-            root.DIR_DATA_STAGE + '1_single/client.pkl',
-            root.DIR_DATA_STAGE + '1_single/historical_weather.pkl',
-            root.DIR_DATA_STAGE + '1_single/electricity_prices.pkl',
-            root.DIR_DATA_STAGE + '1_single/gas_prices.pkl'
+            root.DIR_DATA_STAGE + 'generation.pkl',
+            root.DIR_DATA_STAGE + 'client.pkl',
+            root.DIR_DATA_STAGE + 'historical_weather.pkl',
+            root.DIR_DATA_STAGE + 'electricity_prices.pkl',
+            root.DIR_DATA_STAGE + 'gas_prices.pkl'
         ]
     
     # Create folders if not exists
@@ -146,14 +138,10 @@ def main():
     historical_weather = historical_weather.groupby(['county', 'datetime']).agg('mean').reset_index()
 
     # Filter data by is_business, product_type, county_code
-    train_c, train_p, client, historical_weather = filter_data(train, client, historical_weather, is_business, product_type, county_code)
-
-    # Interpolate target missing values
-    train_c = fill_missing_target_values(train_c, 'target')
-    train_p = fill_missing_target_values(train_p, 'target')
-
+    train, client, historical_weather = filter_data(train, client, historical_weather, is_business, product_type, county_code)
+    
     # Save datasets to pickle files
-    save_datasets_to_pickle([train_c, train_p, client, historical_weather, electricity_prices, gas_prices])
+    save_datasets_to_pickle([train, client, historical_weather, electricity_prices, gas_prices])
 
 
 if __name__ == "__main__":

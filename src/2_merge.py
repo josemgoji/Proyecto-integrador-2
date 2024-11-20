@@ -8,17 +8,16 @@ def load_datasets():
     """Load all datasets and return them as dataframes."""
     current_dir = os.getcwd()
     ROOT_PATH = os.path.dirname(current_dir)
-    sys.path.insert(1, current_dir)
+    sys.path.insert(1, ROOT_PATH)
     import root
 
-    train_c = pd.read_pickle(root.DIR_DATA_STAGE + '1_single/train_consumption.pkl')
-    train_p = pd.read_pickle(root.DIR_DATA_STAGE + '1_single/train_production.pkl')
-    client = pd.read_pickle(root.DIR_DATA_STAGE + '1_single/client.pkl')
-    historical_weather = pd.read_pickle(root.DIR_DATA_STAGE + '1_single/historical_weather.pkl')
-    electricity_prices = pd.read_pickle(root.DIR_DATA_STAGE + '1_single/electricity_prices.pkl')
-    gas_prices = pd.read_pickle(root.DIR_DATA_STAGE + '1_single/gas_prices.pkl')  
+    train = pd.read_pickle(root.DIR_DATA_STAGE + 'generation.pkl')
+    client = pd.read_pickle(root.DIR_DATA_STAGE + 'client.pkl')
+    historical_weather = pd.read_pickle(root.DIR_DATA_STAGE + 'historical_weather.pkl')
+    electricity_prices = pd.read_pickle(root.DIR_DATA_STAGE + 'electricity_prices.pkl')
+    gas_prices = pd.read_pickle(root.DIR_DATA_STAGE + 'gas_prices.pkl')  
 
-    return  train_c, train_p, client, historical_weather, electricity_prices, gas_prices
+    return  train, client, historical_weather, electricity_prices, gas_prices
         
 
 def add_time_series_col(client, historical_weather, electricity_prices, gas_prices):
@@ -52,6 +51,9 @@ def merge_datasets(train, client, historical_weather, electricity_prices, gas_pr
     merged = merged.merge(client, on='date', how='outer') \
                    .merge(gas_prices, on='date', how='outer')
 
+    #dreop unnecessary columns
+    merged = merged.drop(['date'], axis=1)
+    
     return merged
 
 
@@ -59,7 +61,7 @@ def reorder_columns(df, column_order=None):
     """Reorder columns of the DataFrame."""
     if column_order == None:
         column_order = [
-            'datetime', 'date', 'target', 'temperature', 'dewpoint', 'rain', 'snowfall',
+            'datetime', 'target', 'temperature', 'dewpoint', 'rain', 'snowfall',
             'surface_pressure', 'cloudcover_total', 'cloudcover_low', 'cloudcover_mid', 
             'cloudcover_high', 'windspeed_10m', 'winddirection_10m', 
             'shortwave_radiation', 'direct_solar_radiation', 'diffuse_radiation',
@@ -73,8 +75,7 @@ def save_datasets_to_pickle(datasets, paths=None):
     if paths == None:
         import root
         paths = [
-            root.DIR_DATA_STAGE + '2_merged/consumption.pkl',
-            root.DIR_DATA_STAGE + '2_merged/production.pkl',
+            root.DIR_DATA_STAGE + 'merged_df.pkl',
         ]
 
     # Create folders if not exists
@@ -84,29 +85,55 @@ def save_datasets_to_pickle(datasets, paths=None):
     # Save each dataset to its respective path
     for dataset, path in zip(datasets, paths):
         dataset.to_pickle(path)
+        
+def drop_first_3_days(df, column, threshold_column, threshold_nans=70):
+    """Drop first 3 days of the dataset if the threshold is exceeded."""
+    
+    # Coun null values in the threshold column
+    nulos = df[threshold_column].isna().sum()
+    
+    # if the threshold is exceeded drop the first 3 days
+    if nulos > threshold_nans:
+        # initial date
+        fecha_minima = df[column].min()
+
+        # limit day
+        limite = fecha_minima + pd.Timedelta(days=3)
+
+        # filter df
+        df = df[df[column] >= limite]
+    
+    return df
+        
+
+def fill_missing_target_values(df):
+    """Sort by date and fill missing values by linear interpolation."""
+    df = df.sort_values(by='datetime')
+    df = df.interpolate(method='linear', limit_direction='both')
+    return df
 
 
 def main():
      # Read datasets
-    train_c, train_p, client, historical_weather, electricity_prices, gas_prices = load_datasets()
+    train, client, historical_weather, electricity_prices, gas_prices = load_datasets()
 
     # Prepare date columns for merging
     client, historical_weather, electricity_prices, gas_prices = add_time_series_col(client, historical_weather, electricity_prices, gas_prices)
 
     # Merge datasets
-    merged_c = merge_datasets(train_c, client, historical_weather, electricity_prices, gas_prices)
-    merged_p = merge_datasets(train_p, client, historical_weather, electricity_prices, gas_prices)
-
+    merged = merge_datasets(train, client, historical_weather, electricity_prices, gas_prices)
+    
     # Reorder dataset columns
-    merged_c = reorder_columns(merged_c)
-    merged_p = reorder_columns(merged_p)
-
-    # Remove last row
-    merged_c = merged_c[:-1]
-    merged_p = merged_p[:-1]
+    merged = reorder_columns(merged)
+    
+    #drop fist 3 days
+    merged = drop_first_3_days(merged, 'datetime','installed_capacity')
+    
+    #Fill missing values
+    merged = fill_missing_target_values(merged)
 
     # Save datasets to pickle files
-    save_datasets_to_pickle([merged_c, merged_p])
+    save_datasets_to_pickle([merged])
 
 
 if __name__ == "__main__":
