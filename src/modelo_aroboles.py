@@ -50,8 +50,9 @@ def load_datasets():
     ROOT_PATH = os.path.dirname(current_dir)
     sys.path.insert(1, ROOT_PATH)
     import root
-    train = pd.read_pickle(root.DIR_DATA_STAGE + 'train.pkl')
+    train = pd.read_pickle(root.DIR_DATA_STAGE + 'train_exog.pkl')
     return train
+
 
 def exog_cols(datos):
     datos = datos.drop(columns=['target'])
@@ -68,9 +69,9 @@ def define_forecaster():
 
 
 def hyperparametros_search(datos, forecaster, fin_train):
-    # Lags utilizados como predictores
+    
+# Lags utilizados como predictores
     lags_grid = [24, [1, 2, 3, 23, 24, 25, 47, 48, 49]]
-
     # Espacio de búsqueda de hiperparámetros
     def search_space(trial):
         search_space  = {
@@ -180,4 +181,4 @@ def main():
 
     datos['predicciones'] = predicciones
     
-    datos[['target','predicciones']].head(30)
+    datos.loc[fin_train:, ['target', 'predicciones']]
