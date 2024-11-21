@@ -41,6 +41,9 @@ from skforecast.model_selection import TimeSeriesFold
 from skforecast.preprocessing import RollingFeatures
 import shap
 
+# Importar prepropcesing
+from exog_creation import *
+
 import sys
 import os
 
@@ -50,7 +53,7 @@ def load_datasets():
     ROOT_PATH = os.path.dirname(current_dir)
     sys.path.insert(1, ROOT_PATH)
     import root
-    train = pd.read_pickle(root.DIR_DATA_STAGE + 'train_exog.pkl')
+    train = pd.read_pickle(root.DIR_DATA_STAGE + 'train.pkl')
     return train
 
 
@@ -166,6 +169,8 @@ def final_model(datos,best_params, lags_select, exog_select,fin_train):
 
 def main():
     datos = load_datasets()
+    
+    datos = create_exog(datos)
     
     fin_train = '2022-08-31 23:59:00'
     

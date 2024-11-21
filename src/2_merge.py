@@ -112,6 +112,14 @@ def fill_missing_target_values(df):
     df = df.interpolate(method='linear', limit_direction='both')
     return df
 
+def feature_selection(df):
+    cols_2_drop = [ 'dewpoint','cloudcover_low','cloudcover_mid', 
+                   'cloudcover_high','direct_solar_radiation',
+                   'diffuse_radiation', 'lowest_price_per_mwh',
+                   'highest_price_per_mwh','eic_count']
+    df.drop(columns = cols_2_drop, axis = 1, inplace = True)
+    return df
+
 
 def main():
      # Read datasets
@@ -128,6 +136,9 @@ def main():
     
     #drop fist 3 days
     merged = drop_first_3_days(merged, 'datetime','installed_capacity')
+    
+    #feature selection
+    merged = feature_selection(merged)
     
     #Fill missing values
     merged = fill_missing_target_values(merged)

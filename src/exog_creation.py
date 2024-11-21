@@ -13,17 +13,13 @@ from sklearn.preprocessing import PolynomialFeatures
 import sys
 import os
 ##########################################################################################
-def load_datasets():
-    """Load all datasets and return them as dataframes."""
-    current_dir = os.getcwd()
-    ROOT_PATH = os.path.dirname(current_dir)
-    sys.path.insert(1, ROOT_PATH)
-    import root
 
-    train = pd.read_pickle(root.DIR_DATA_STAGE + 'train.pkl')
-    test = pd.read_pickle(root.DIR_DATA_STAGE + 'test.pkl')
 
-    return  train, test
+# current_dir = os.getcwd()
+# ROOT_PATH = os.path.dirname(current_dir)
+# sys.path.insert(1, ROOT_PATH)
+# import root
+# datos = pd.read_pickle(root.DIR_DATA_STAGE + 'train.pkl')
 
 # Variables basadas en el calendario
 def calendar_features(datos):
@@ -41,18 +37,6 @@ def calendar_features(datos):
     variables_calendario = calendar_transformer.fit_transform(datos)[features_to_extract]
     
     return variables_calendario
-
-# Variables basadas en temperatura
-def temperature_features(datos):
-    wf_transformer = WindowFeatures(
-        variables = ["temperature"],
-        window    = ["1D", "7D"],
-        functions = ["mean", "max", "min"],
-        freq      = "h",
-    )
-    variables_temp = wf_transformer.fit_transform(datos[['temperature']])
-    
-    return variables_temp
 
 # Variables basadas en la luz solar
 def solar_features(datos):
@@ -91,17 +75,12 @@ def solar_features(datos):
 
 # Unión de variables exógenas
 
-def union_exog_features(variables_calendario, variables_temp, variables_solares):
-    assert all(variables_calendario.index == variables_temp.index)
+def union_exog_features(variables_calendario, variables_solares):
+    assert all(variables_calendario.index == variables_solares.index)
     variables_exogenas = pd.concat([
                             variables_calendario,
-                            variables_temp,
                             variables_solares
                         ], axis=1)
-    # Debido a la creación de medias móviles, hay valores faltantes al principio
-    # de la serie. Y debido a holiday_next_day hay valores faltantes al final.
-    variables_exogenas = variables_exogenas.iloc[7 * 24:, :]
-    variables_exogenas = variables_exogenas.iloc[:-24, :]
     
     return variables_exogenas
 
@@ -154,13 +133,6 @@ def pol_features(variables_exogenas):
         'sunset_hour_cos',
         'daylight_hours',
         'is_daylight',
-        'temperature_window_1D_mean',
-        'temperature_window_1D_min',
-        'temperature_window_1D_max',
-        'temperature_window_7D_mean',
-        'temperature_window_7D_min',
-        'temperature_window_7D_max',
-        'temperature',
     ]
     variables_poly = transformer_poly.fit_transform(variables_exogenas[poly_cols])
     variables_poly = variables_poly.drop(columns=poly_cols)
@@ -177,57 +149,31 @@ def select_exog_features(variables_exogenas):
     exog_features = []
     # Columnas que terminan con _seno o _coseno son seleccionadas
     exog_features.extend(variables_exogenas.filter(regex='_sin$|_cos$').columns.tolist())
-    # Columnas que empiezan con temp_ son seleccionadas
-    exog_features.extend(variables_exogenas.filter(regex='^temperature_.*').columns.tolist())
-    # Incluir temperatura y festivos
-    exog_features.extend(['temperature'])
     
     return exog_features
      
 def merge_df(datos,variables_exogenas, exog_features):
-    datos = datos[['target']].merge(
-           variables_exogenas[exog_features],
+    datos = datos.merge(variables_exogenas[exog_features],
            left_index=True,
            right_index=True,
-           how='inner'  # Usar solo las filas que coinciden en ambos DataFrames
+           how='left'  # Usar solo las filas que coinciden en ambos DataFrames
        )
     
     return datos
-
-def save_datasets_to_pickle(datasets, paths=None):
-    """Save each dataset in datasets list to the corresponding path in paths list as a pickle file."""
-    if paths == None:
-        import root
-        paths = [
-            root.DIR_DATA_STAGE + 'train_exog.pkl',
-            root.DIR_DATA_STAGE + 'test_exog.pkl',
-        ]
-
-    # Create folders if not exists
-    for path in paths:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-
-    # Save each dataset to its respective path
-    for dataset, path in zip(datasets, paths):
-        dataset.to_pickle(path)
     
 
-def main():
+def create_exog(datos):
     # Read datasets
-    train, test = load_datasets()
     
     ################### Train ######################
     # Prepare date columns
-    variables_calendario = calendar_features(train)
-    
-    # Temperature features
-    variables_temp = temperature_features(train)
+    variables_calendario = calendar_features(datos)
     
     #solar features
-    variables_solares = solar_features(train)
+    variables_solares = solar_features(datos)
     
     # mergin variables
-    variables_exogenas = union_exog_features(variables_calendario, variables_temp, variables_solares)
+    variables_exogenas = union_exog_features(variables_calendario, variables_solares)
     
     # cyclical features
     variables_exogenas = ciclic_features(variables_exogenas)
@@ -239,35 +185,8 @@ def main():
     exog_features = select_exog_features(variables_exogenas)
     
     # Merge datasets
-    train_final = merge_df(train,variables_exogenas, exog_features)
+    datos = merge_df(datos,variables_exogenas, exog_features)
     
-    ################### Test ######################
-    variables_calendario = calendar_features(test)
+    return datos
     
-    # Temperature features
-    variables_temp = temperature_features(test)
-    
-    #solar features
-    variables_solares = solar_features(test)
-    
-    # mergin variables
-    variables_exogenas = union_exog_features(variables_calendario, variables_temp, variables_solares)
-    
-    # cyclical features
-    variables_exogenas = ciclic_features(variables_exogenas)
-    
-    # polynomial features
-    variables_exogenas = pol_features(variables_exogenas)
-    
-    # Select exog features
-    exog_features = select_exog_features(variables_exogenas)
-    
-    # Merge datasets
-    test_final = merge_df(test,variables_exogenas, exog_features)
-    
-    # Save datasets
-    save_datasets_to_pickle([train_final, test_final])
-    
-if __name__ == '__main__':
-    main()
     

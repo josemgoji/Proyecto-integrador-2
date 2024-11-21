@@ -51,15 +51,6 @@ def main():
     
     # Save datasets
     save_datasets_to_pickle([datos_train, datos_test])
-    
-    
-    
-    correlation_matrix = datos.corr()
-
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(correlation_matrix, annot=True, fmt=".2f", cmap='coolwarm', square=True, cbar_kws={"shrink": .8})
-    plt.title('Correlation Heatmap', fontsize=16)
-    plt.show()
 
 if __name__ == "__main__": 
     main()
