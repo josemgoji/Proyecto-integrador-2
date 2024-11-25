@@ -3,11 +3,15 @@ imblearn
 joblib
 matplotlib
 missingno
-numpy
-pandas
 scikit_learn
 scipy
 seaborn
 Unidecode
 openpyxl
 geopy
+kaleido
+skforecast==0.14.0
+Keras==3.5.0
+pandas==2.2.3
+numpy==1.26.4
+tensorflow==2.16.2
