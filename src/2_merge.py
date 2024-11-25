@@ -1,6 +1,8 @@
 import pandas as pd
 import os
 import sys
+from sklearn.preprocessing import MinMaxScaler
+import joblib
 
 
 
@@ -120,6 +122,29 @@ def feature_selection(df):
     df.drop(columns = cols_2_drop, axis = 1, inplace = True)
     return df
 
+def set_datetime_index(df):
+    df = df.set_index('datetime')
+    df = df.asfreq('h')
+    
+    return df
+
+def escalar_df(df):
+
+    scaler = MinMaxScaler()
+    # Escalar las columnas del DataFrame
+    scaled_data = scaler.fit_transform(df)
+    # Crear un nuevo DataFrame con los datos escalados, manteniendo los nombres de las columnas
+    df_scaled = pd.DataFrame(scaled_data, columns=df.columns)
+    
+    return df_scaled, scaler
+    
+def guardar_escaler(scaler,name):
+    current_dir = os.getcwd()
+    ROOT_PATH = os.path.dirname(current_dir)
+    sys.path.insert(1, ROOT_PATH)
+    import root
+    joblib.dump(scaler,root.DIR_DATA_ANALYTICS + name)
+      
 
 def main():
      # Read datasets
@@ -142,6 +167,15 @@ def main():
     
     #Fill missing values
     merged = fill_missing_target_values(merged)
+    
+    #set datetime index
+    merged = set_datetime_index(merged)
+    
+    #escalar
+    merged, scaler = escalar_df(merged)
+    
+    # Save scaler
+    guardar_escaler(scaler, 'scaler.pkl')
 
     # Save datasets to pickle files
     save_datasets_to_pickle([merged])

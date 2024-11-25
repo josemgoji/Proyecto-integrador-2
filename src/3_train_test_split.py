@@ -13,8 +13,6 @@ def load_datasets():
     import root
 
     datos = pd.read_pickle(root.DIR_DATA_STAGE + 'merged_df.pkl')
-    datos = datos.set_index('datetime')
-    datos = datos.asfreq('h')
     
     return  datos
 
