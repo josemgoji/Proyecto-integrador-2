@@ -146,14 +146,14 @@ def main():
     data_val = val[series].copy()
     data_test = test[series].copy()
 
-    steps = 
-    lags = 
-    recurrent_units = 
-    dense_units = 
-    learning_rate = 
-    epochs = 
-    batch_size = 
-
+    steps = 24
+    lags = 72
+    recurrent_units = [128, 64]
+    dense_units = [32, 16]
+    learning_rate = 0.01
+    epochs = 4
+    batch_size = 64
+    
     model = create_model(data_train, levels, lags, steps, recurrent_units, dense_units, learning_rate)
     forecaster = create_forecaster(data_train, data_val, model, levels, steps, lags, epochs, batch_size)
     metrics, predictions = backtesting(data, end_val, forecaster, levels)
