@@ -1,8 +1,6 @@
 import pandas as pd
-import os
 import sys
-from sklearn.preprocessing import MinMaxScaler
-import joblib
+import os
 
 
 
@@ -11,6 +9,7 @@ def load_datasets():
     current_dir = os.getcwd()
     ROOT_PATH = os.path.dirname(current_dir)
     sys.path.insert(1, ROOT_PATH)
+    sys.path.insert(1, current_dir)
     import root
 
     train = pd.read_pickle(root.DIR_DATA_STAGE + 'generation.pkl')
@@ -20,7 +19,7 @@ def load_datasets():
     gas_prices = pd.read_pickle(root.DIR_DATA_STAGE + 'gas_prices.pkl')  
 
     return  train, client, historical_weather, electricity_prices, gas_prices
-        
+
 
 def add_time_series_col(client, historical_weather, electricity_prices, gas_prices):
     """Add column with date where data is available."""
@@ -87,32 +86,24 @@ def save_datasets_to_pickle(datasets, paths=None):
     # Save each dataset to its respective path
     for dataset, path in zip(datasets, paths):
         dataset.to_pickle(path)
-        
+
+
 def drop_first_3_days(df, column, threshold_column, threshold_nans=70):
     """Drop first 3 days of the dataset if the threshold is exceeded."""
-    
-    # Coun null values in the threshold column
+    # Count null values in the threshold column
     nulos = df[threshold_column].isna().sum()
     
-    # if the threshold is exceeded drop the first 3 days
+    # If the threshold is exceeded drop the first 3 days
     if nulos > threshold_nans:
-        # initial date
+        # Initial date
         fecha_minima = df[column].min()
-
-        # limit day
+        # Limit day
         limite = fecha_minima + pd.Timedelta(days=3)
-
-        # filter df
+        # Filter df
         df = df[df[column] >= limite]
     
     return df
-        
 
-def fill_missing_target_values(df):
-    """Sort by date and fill missing values by linear interpolation."""
-    df = df.sort_values(by='datetime')
-    df = df.interpolate(method='linear', limit_direction='both')
-    return df
 
 def feature_selection(df):
     cols_2_drop = [ 'dewpoint','cloudcover_low','cloudcover_mid', 
@@ -122,29 +113,12 @@ def feature_selection(df):
     df.drop(columns = cols_2_drop, axis = 1, inplace = True)
     return df
 
+
 def set_datetime_index(df):
     df = df.set_index('datetime')
     df = df.asfreq('h')
-    
     return df
 
-def escalar_df(df):
-
-    scaler = MinMaxScaler()
-    # Escalar las columnas del DataFrame
-    scaled_data = scaler.fit_transform(df)
-    # Crear un nuevo DataFrame con los datos escalados, manteniendo los nombres de las columnas
-    df_scaled = pd.DataFrame(scaled_data, columns=df.columns)
-    
-    return df_scaled, scaler
-    
-def guardar_escaler(scaler,name):
-    current_dir = os.getcwd()
-    ROOT_PATH = os.path.dirname(current_dir)
-    sys.path.insert(1, ROOT_PATH)
-    import root
-    joblib.dump(scaler,root.DIR_DATA_ANALYTICS + name)
-      
 
 def main():
      # Read datasets
@@ -159,25 +133,16 @@ def main():
     # Reorder dataset columns
     merged = reorder_columns(merged)
     
-    #drop fist 3 days
+    # Drop first three days
     merged = drop_first_3_days(merged, 'datetime','installed_capacity')
     
-    #feature selection
+    # Feature selection
     merged = feature_selection(merged)
-    
-    #Fill missing values
-    merged = fill_missing_target_values(merged)
-    
-    #set datetime index
-    merged = set_datetime_index(merged)
-    
-    #escalar
-    merged, scaler = escalar_df(merged)
-    
-    # Save scaler
-    guardar_escaler(scaler, 'scaler.pkl')
 
-    # Save datasets to pickle files
+    # Set datetime index
+    merged = set_datetime_index(merged)
+
+    # Save dataset to pickle file
     save_datasets_to_pickle([merged])
 
 
