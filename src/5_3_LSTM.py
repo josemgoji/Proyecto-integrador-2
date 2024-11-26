@@ -45,10 +45,11 @@ def load_datasets():
     current_dir = os.getcwd()
     ROOT_PATH = os.path.dirname(current_dir)
     sys.path.insert(1, ROOT_PATH)
+    sys.path.insert(1, current_dir)
     import root
 
-    train = pd.read_pickle(root.DIR_DATA_STAGE + 'train.pkl')
-    test = pd.read_pickle(root.DIR_DATA_STAGE + 'test.pkl')
+    train = pd.read_pickle(root.DIR_DATA_STAGE + 'train_preprocessed.pkl')
+    test = pd.read_pickle(root.DIR_DATA_STAGE + 'test_preprocessed.pkl')
     return root, train, test
 
 
