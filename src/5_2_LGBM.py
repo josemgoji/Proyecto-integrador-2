@@ -140,7 +140,7 @@ def final_model(datos,best_params, lags_select, exog_select,fin_train):
     cv = TimeSeriesFold(
         steps                 = 24,
         initial_train_size    = len(datos[:fin_train]),
-        refit                 = 24,
+        refit                 = True,
         fixed_train_size      = False,
         gap                   = 0,
         allow_incomplete_fold = True

@@ -7,7 +7,6 @@ from sklearn.preprocessing import FunctionTransformer
 from sklearn.pipeline import Pipeline
 
 
-
 def load_datasets():
     """Load all datasets and return them as dataframes."""
     current_dir = os.getcwd()
