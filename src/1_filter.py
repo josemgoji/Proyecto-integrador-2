@@ -1,7 +1,4 @@
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
 from geopy.geocoders import Nominatim
 import sys
 import os
@@ -13,6 +10,7 @@ def load_datasets():
     current_dir = os.getcwd()
     ROOT_PATH = os.path.dirname(current_dir)
     sys.path.insert(1, ROOT_PATH)
+    sys.path.insert(1, current_dir)
     import root
     
     train = pd.read_csv(root.DIR_DATA_RAW + 'train.csv')
