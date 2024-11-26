@@ -39,6 +39,7 @@ from skforecast.model_selection import backtesting_forecaster
 from skforecast.feature_selection import select_features
 from skforecast.model_selection import TimeSeriesFold
 from skforecast.preprocessing import RollingFeatures
+from skforecast.utils import save_forecaster
 import shap
 
 # Importar prepropcesing
@@ -53,11 +54,11 @@ def load_datasets():
     ROOT_PATH = os.path.dirname(current_dir)
     sys.path.insert(1, ROOT_PATH)
     import root
-    train = pd.read_pickle(root.DIR_DATA_STAGE + 'train.pkl')
+    train = pd.read_pickle(root.DIR_DATA_STAGE + 'train_preprocessed.pkl')
     return train
 
 
-def exog_cols(datos):
+def def_exog_cols(datos):
     datos = datos.drop(columns=['target'])
     return list(datos.columns)
 
@@ -70,38 +71,33 @@ def define_forecaster():
                 )
     return forecaster
 
-
-def hyperparametros_search(datos, forecaster, fin_train):
-    
-# Lags utilizados como predictores
-    lags_grid = [24, [1, 2, 3, 23, 24, 25, 47, 48, 49]]
+def hyperparametros_search(datos, forecaster, fin_train,exog_cols):
+    cv = TimeSeriesFold(
+        steps              = 24,
+        initial_train_size = len(datos[:fin_train]),
+        refit              = False,
+        )
     # Espacio de búsqueda de hiperparámetros
     def search_space(trial):
         search_space  = {
-            'n_estimators' : trial.suggest_int('n_estimators', 600, 2000, step=100),
-            'max_depth'    : trial.suggest_int('max_depth', 3, 10, step=1),
+            'n_estimators' : trial.suggest_int('n_estimators', 600, 3000, step=100),
+            'max_depth'    : trial.suggest_int('max_depth', 3, 15, step=1),
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.5),
             'reg_alpha'    : trial.suggest_float('reg_alpha', 0, 1, step=0.1),
             'reg_lambda'   : trial.suggest_float('reg_lambda', 0, 1, step=0.1),
-            'lags'         : trial.suggest_categorical('lags', lags_grid)
+            'lags'         : trial.suggest_categorical('lags', [24,48,72])
         } 
         return search_space
-
-    # Partición de entrenamiento y validación
-    cv_search = TimeSeriesFold(
-                    steps              = 24,
-                    initial_train_size = len(datos[:fin_train]),
-                    refit              = False,
-                )
 
     resultados_busqueda, frozen_trial = bayesian_search_forecaster(
                                             forecaster    = forecaster,
                                             y             = datos['target'],
-                                            cv            = cv_search,
-                                            metric        = 'mean_absolute_error',
+                                            exog          = datos[exog_cols],
+                                            cv            = cv,
+                                            metric        = 'mean_squared_error',
                                             search_space  = search_space,
-                                            n_trials      = 10,  # Aumentar para una búsqueda más exhaustiva
-                                            random_state  = 123,
+                                            n_trials      = 20,  # Aumentar para una búsqueda más exhaustiva
+                                            random_state  = 42,
                                             return_best   = True,
                                             n_jobs        = 'auto',
                                             verbose       = False,
@@ -109,10 +105,11 @@ def hyperparametros_search(datos, forecaster, fin_train):
                                         )
     best_params = resultados_busqueda.at[0, 'params']
     best_params = best_params | {'random_state': 15926, 'verbose': -1}
-    backtesting_metric = resultados_busqueda.at[0, 'mean_absolute_error']
+    backtesting_metric = resultados_busqueda.at[0, 'mean_squared_error']
     
   
     return best_params, backtesting_metric
+
 
 def feature_selection(datos, forecaster, exog_cols):
     regressor = LGBMRegressor(random_state=15926, verbose=-1)
@@ -132,7 +129,7 @@ def feature_selection(datos, forecaster, exog_cols):
         select_only     = None,
         force_inclusion = None,
         subsample       = 0.5,
-        random_state    = 123,
+        random_state    = 42,
         verbose         = True,
     )
     
@@ -140,6 +137,14 @@ def feature_selection(datos, forecaster, exog_cols):
 
 def final_model(datos,best_params, lags_select, exog_select,fin_train):
     
+    cv = TimeSeriesFold(
+        steps                 = 24,
+        initial_train_size    = len(datos[:fin_train]),
+        refit                 = 24,
+        fixed_train_size      = False,
+        gap                   = 0,
+        allow_incomplete_fold = True
+    )
     
     window_features = RollingFeatures(stats=["mean"], window_sizes=24 * 3)
     forecaster = ForecasterRecursive(
@@ -147,25 +152,64 @@ def final_model(datos,best_params, lags_select, exog_select,fin_train):
                     lags            = lags_select,
                     window_features = window_features
                 )
-
+    forecaster.fit(
+        y    = datos['target'],
+        exog = datos[exog_select]
+    )
     # Backtesting con los predictores seleccionados y los datos de test
     # ==============================================================================
-    cv = TimeSeriesFold(
-        steps              = 24,
-        initial_train_size = len(datos[:fin_train]),
-        refit              = False,
-)
+
     metrica, predicciones = backtesting_forecaster(
                                 forecaster         = forecaster,
                                 y                  = datos['target'],
                                 exog               = datos[exog_select],
                                 cv                 = cv,
-                                metric             = 'mean_absolute_error',
+                                metric             = 'mean_squared_error',
                                 n_jobs             = 'auto',
                                 verbose            = False,
-                                show_progress      = True
+                                show_progress      = True,
                             )
-    return metrica, predicciones   
+    
+    return forecaster,metrica, predicciones   
+
+def save_model(forecaster,name):
+    current_dir = os.getcwd()
+    ROOT_PATH = os.path.dirname(current_dir)
+    sys.path.insert(1, ROOT_PATH)
+    import root
+    save_forecaster(
+    forecaster, 
+    file_name = root.DIR_DATA_ANALYTICS + name, 
+    save_custom_functions = True, 
+    verbose = False
+)
+    
+def create_plot(predicciones,datos):
+    fig = go.Figure()
+    trace1 = go.Scatter(x=datos.index, y=datos['target'], name="real", mode="lines")
+    trace2 = go.Scatter(x=predicciones.index, y=predicciones['pred'], name="prediction", mode="lines")
+    fig.add_trace(trace1)
+    fig.add_trace(trace2)
+    fig.update_layout(
+        title="Predicción vs valores reales en test",
+        xaxis_title="Date time",
+        yaxis_title="Demand",
+        width=750,
+        height=370,
+        margin=dict(l=20, r=20, t=35, b=20),
+        legend=dict(orientation="h", yanchor="top", y=1.01, xanchor="left", x=0)
+    )
+    fig.show()
+    
+    return fig
+
+def save_plot(fig,name):
+    current_dir = os.getcwd()
+    ROOT_PATH = os.path.dirname(current_dir)
+    sys.path.insert(1, ROOT_PATH)
+    import root
+    fig.write_html(root.DIR_DATA_ANALYTICS + name)
+        
 
 def main():
     datos = load_datasets()
@@ -174,16 +218,18 @@ def main():
     
     fin_train = '2022-08-31 23:59:00'
     
-    exog_cols = exog_cols(datos)
+    exog_cols = def_exog_cols(datos)
     
     forecaster = define_forecaster()
     
-    best_params, backtesting_metric = hyperparametros_search(datos, forecaster, fin_train)
+    best_params, backtesting_metric = hyperparametros_search(datos, forecaster, fin_train, exog_cols)
     
     lags_select, exog_select = feature_selection(datos, forecaster, exog_cols)
-
-    metrica, predicciones = final_model(datos,best_params, lags_select, exog_select,fin_train)
-
-    datos['predicciones'] = predicciones
     
-    datos.loc[fin_train:, ['target', 'predicciones']]
+    modelo, metrica, predicciones = final_model(datos,best_params, lags_select, exog_select,fin_train)
+
+    save_model(modelo, 'tree_model')
+    
+    fig = create_plot(predicciones,datos[fin_train:])
+    
+    save_plot(fig, 'tree_model.html')
