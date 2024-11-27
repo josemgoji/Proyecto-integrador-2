@@ -41,7 +41,7 @@ from skforecast.model_selection import TimeSeriesFold
 from skforecast.preprocessing import RollingFeatures
 from skforecast.utils import save_forecaster
 import shap
-
+import pickle
 # Importar prepropcesing
 from exog_creation import *
 
@@ -80,7 +80,7 @@ def hyperparametros_search(datos, forecaster, fin_train,exog_cols):
     # Espacio de búsqueda de hiperparámetros
     def search_space(trial):
         search_space  = {
-            'n_estimators' : trial.suggest_int('n_estimators', 600, 3000, step=100),
+            'n_estimators' : trial.suggest_int('n_estimators', 600, 2000, step=100),
             'max_depth'    : trial.suggest_int('max_depth', 3, 15, step=1),
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.5),
             'reg_alpha'    : trial.suggest_float('reg_alpha', 0, 1, step=0.1),
@@ -187,14 +187,13 @@ def save_model(forecaster,name):
 def create_plot(predicciones,datos):
     fig = go.Figure()
     trace1 = go.Scatter(x=datos.index, y=datos['target'], name="real", mode="lines")
-    trace2 = go.Scatter(x=predicciones.index, y=predicciones['pred'], name="prediction", mode="lines")
+    trace2 = go.Scatter(x=predicciones.index, y=predicciones['target'], name="predicción", mode="lines")
     fig.add_trace(trace1)
     fig.add_trace(trace2)
     fig.update_layout(
         title="Predicción vs valores reales en test",
-        xaxis_title="Date time",
-        yaxis_title="Demand",
-        width=750,
+        yaxis_title="Generación (kWh)",
+        width=600,
         height=370,
         margin=dict(l=20, r=20, t=35, b=20),
         legend=dict(orientation="h", yanchor="top", y=1.01, xanchor="left", x=0)
@@ -209,27 +208,74 @@ def save_plot(fig,name):
     sys.path.insert(1, ROOT_PATH)
     import root
     fig.write_html(root.DIR_DATA_ANALYTICS + name)
+    
+def load_pipeline(name):
+    current_dir = os.getcwd()
+    ROOT_PATH = os.path.dirname(current_dir)
+    sys.path.insert(1, ROOT_PATH)
+    import root
+    with open(root.DIR_DATA_ANALYTICS +'pipeline.pkl', 'rb') as file:
+        pipeline = pickle.load(file)
+    return pipeline
+
+def save_datasets_to_pickle(datasets, paths=None):
+    """Save each dataset in datasets list to the corresponding path in paths list as a pickle file."""
+    if paths == None:
+        import root
+        paths = [
+            root.DIR_DATA_ANALYTICS + 'LGBM_predictions_val.pkl',
+        ]
+
+    # Create folders if not exists
+    for path in paths:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+
+    # Save each dataset to its respective path
+    for dataset, path in zip(datasets, paths):
+        dataset.to_pickle(path)
         
 
 def main():
     datos = load_datasets()
     
-    datos = create_exog(datos)
+    datos_exog = create_exog(datos)
     
     fin_train = '2022-08-31 23:59:00'
     
-    exog_cols = def_exog_cols(datos)
+    exog_cols = def_exog_cols(datos_exog)
     
     forecaster = define_forecaster()
     
-    best_params, backtesting_metric = hyperparametros_search(datos, forecaster, fin_train, exog_cols)
+    best_params, backtesting_metric = hyperparametros_search(datos_exog, forecaster, fin_train, exog_cols)
     
-    lags_select, exog_select = feature_selection(datos, forecaster, exog_cols)
+    lags_select, exog_select = feature_selection(datos_exog, forecaster, exog_cols)
     
-    modelo, metrica, predicciones = final_model(datos,best_params, lags_select, exog_select,fin_train)
-
+    modelo, metrica, predicciones = final_model(datos_exog,best_params, lags_select, exog_select,fin_train)
+    
     save_model(modelo, 'tree_model')
     
-    fig = create_plot(predicciones,datos[fin_train:])
+    ## desescalar dato s
+    pipeline = load_pipeline('pipeline.pkl')
+    
+    ## desescalar predicciones
+    datos_pred = datos.copy()
+    
+    datos_pred = datos_pred[fin_train:]
+    
+    datos_pred['target'] = predicciones
+    
+    scaled_pred = pipeline.inverse_transform(datos_pred)
+    
+    pred_scaled_df = pd.DataFrame(scaled_pred, columns=datos_pred.columns, index=datos_pred.index)
+
+    pred_scaled_df = pred_scaled_df[['target']]
+    ## desescalar datso reales
+    scaled_real = pipeline.inverse_transform(datos[fin_train:])
+    
+    scaled_real_df = pd.DataFrame(scaled_real, columns=datos.columns, index=datos[fin_train:].index)
+    
+    save_datasets_to_pickle([pred_scaled_df])
+    
+    fig = create_plot(pred_scaled_df,scaled_real_df)
     
     save_plot(fig, 'tree_model.html')
