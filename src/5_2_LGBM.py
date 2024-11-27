@@ -186,7 +186,7 @@ def save_model(forecaster,name):
     
 def create_plot(predicciones,datos):
     fig = go.Figure()
-    trace1 = go.Scatter(x=datos.index, y=datos['target'], name="real", mode="lines")
+    trace1 = go.Scatter(x=datos.index, y=datos['target'], name="real", mode="lines",line_color="#4EA72E")
     trace2 = go.Scatter(x=predicciones.index, y=predicciones['target'], name="predicción", mode="lines")
     fig.add_trace(trace1)
     fig.add_trace(trace2)
@@ -254,28 +254,28 @@ def main():
     
     save_model(modelo, 'tree_model')
     
-    ## desescalar dato s
-    pipeline = load_pipeline('pipeline.pkl')
+    ## desescalar datos
+    # pipeline = load_pipeline('pipeline.pkl')
     
-    ## desescalar predicciones
-    datos_pred = datos.copy()
+    # ## desescalar predicciones
+    # datos_pred = datos.copy()
     
-    datos_pred = datos_pred[fin_train:]
+    # datos_pred = datos_pred[fin_train:]
     
-    datos_pred['target'] = predicciones
+    # datos_pred['target'] = predicciones
     
-    scaled_pred = pipeline.inverse_transform(datos_pred)
+    # scaled_pred = pipeline.inverse_transform(datos_pred)
     
-    pred_scaled_df = pd.DataFrame(scaled_pred, columns=datos_pred.columns, index=datos_pred.index)
+    # pred_scaled_df = pd.DataFrame(scaled_pred, columns=datos_pred.columns, index=datos_pred.index)
 
-    pred_scaled_df = pred_scaled_df[['target']]
-    ## desescalar datso reales
-    scaled_real = pipeline.inverse_transform(datos[fin_train:])
+    # pred_scaled_df = pred_scaled_df[['target']]
+    # ## desescalar datso reales
+    # scaled_real = pipeline.inverse_transform(datos[fin_train:])
     
-    scaled_real_df = pd.DataFrame(scaled_real, columns=datos.columns, index=datos[fin_train:].index)
+    # scaled_real_df = pd.DataFrame(scaled_real, columns=datos.columns, index=datos[fin_train:].index)
     
-    save_datasets_to_pickle([pred_scaled_df])
+    save_datasets_to_pickle([predicciones])
     
-    fig = create_plot(pred_scaled_df,scaled_real_df)
+    #fig = create_plot(pred_scaled_df,scaled_real_df)
     
-    save_plot(fig, 'tree_model.html')
+    #save_plot(fig, 'tree_model.html')
