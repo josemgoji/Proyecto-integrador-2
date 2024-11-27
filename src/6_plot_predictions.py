@@ -15,9 +15,9 @@ def load_datasets():
     import root
 
     train = pd.read_pickle(root.DIR_DATA_STAGE + 'train_preprocessed.pkl')
-    sarimax = pd.read_pickle(root.DIR_DATA_ANALYTICS + 'lstm_predictions_val.pkl')
-    lgbm = pd.read_pickle(root.DIR_DATA_ANALYTICS + 'lstm_predictions_val.pkl')
-    lstm = pd.read_pickle(root.DIR_DATA_ANALYTICS + 'lstm_predictions_val.pkl')
+    sarimax = pd.read_pickle(root.DIR_DATA_ANALYTICS + 'LSTM_predictions_val.pkl')
+    lgbm = pd.read_pickle(root.DIR_DATA_ANALYTICS + 'LGBM_predictions_val.pkl')
+    lstm = pd.read_pickle(root.DIR_DATA_ANALYTICS + 'LSTM_predictions_val.pkl')
     return root, train, sarimax, lgbm, lstm
 
 
