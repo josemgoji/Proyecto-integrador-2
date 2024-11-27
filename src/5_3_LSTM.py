@@ -49,8 +49,7 @@ def load_datasets():
     import root
 
     train = pd.read_pickle(root.DIR_DATA_STAGE + 'train_preprocessed.pkl')
-    test = pd.read_pickle(root.DIR_DATA_STAGE + 'test_preprocessed.pkl')
-    return root, train, test
+    return root, train
 
 
 def create_model(data_train, levels, lags, steps, recurrent_units, dense_units, learning_rate):
@@ -102,40 +101,17 @@ def backtesting(data, end_val, forecaster, levels):
     return metrics, predictions
 
 
-def create_plots(root, data, end_val, forecaster, predictions):
-    # Seguimiento del entrenamiento y overfitting del modelo con mejores parametros
+def training_history_plot(root, forecaster):
+    import root
     fig, ax = plt.subplots(figsize=(5, 2.5))
     forecaster.plot_history(ax=ax)
     plt.savefig(root.DIR_DATA_ANALYTICS + 'LSTM_training_history.png', dpi=300, bbox_inches="tight")
     plt.close(fig)
 
-    # Gráfico de las predicciones vs valores reales en el conjunto de test del modelo con mejores parametros
-    fig = go.Figure()
-    trace1 = go.Scatter(x=data.loc[end_val:].index, y=data.loc[end_val:]['target'], name="test", mode="lines")
-    trace2 = go.Scatter(x=predictions.index, y=predictions['target'], name="predicciones", mode="lines")
-    fig.add_trace(trace1)
-    fig.add_trace(trace2)
-    fig.update_layout(
-        title="Predicciones vs valores reales en el conjunto de test",
-        xaxis_title="Date time",
-        yaxis_title="target",
-        width=750,
-        height=350,
-        margin=dict(l=20, r=20, t=35, b=20),
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=1.05,
-            xanchor="left",
-            x=0
-        )
-    )
-    fig.write_image(root.DIR_DATA_ANALYTICS + 'LSTM_pred_vs_real.png', width=750, height=350)
-
 
 def main():
-    root, train, test = load_datasets()
-    data = pd.concat([train, test])
+    root, train = load_datasets()
+    data = train.copy()
     end_val = '2022-08-31 23:59:59'
     val = train.loc[end_val:]
     train = train.loc[:end_val]
@@ -145,21 +121,21 @@ def main():
 
     data_train = train[series].copy()
     data_val = val[series].copy()
-    data_test = test[series].copy()
 
     steps = 24
     lags = 72
     recurrent_units = [128, 64]
-    dense_units = [32, 16]
+    dense_units = [64, 32]
     learning_rate = 0.01
-    epochs = 4
+    epochs = 8
     batch_size = 64
     
     model = create_model(data_train, levels, lags, steps, recurrent_units, dense_units, learning_rate)
     forecaster = create_forecaster(data_train, data_val, model, levels, steps, lags, epochs, batch_size)
     metrics, predictions = backtesting(data, end_val, forecaster, levels)
+    training_history_plot(root, forecaster)
+    predictions.to_pickle(root.DIR_DATA_ANALYTICS + 'LSTM_predictions_val.pkl')
 
-    create_plots(root, data, end_val, forecaster, predictions)
 
 
 if __name__ == "__main__":
