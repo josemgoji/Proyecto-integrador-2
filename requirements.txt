@@ -12,6 +12,7 @@ geopy
 kaleido
 joblib
 cloudpickle
+statsmodels
 skforecast==0.14.0
 Keras==3.5.0
 pandas==2.2.3
