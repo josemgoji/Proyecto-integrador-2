@@ -254,6 +254,8 @@ def main():
     
     save_model(modelo, 'tree_model')
     
+    predicciones.rename(columns={'pred': 'target'}, inplace=True)
+    
     ## desescalar datos
     # pipeline = load_pipeline('pipeline.pkl')
     
