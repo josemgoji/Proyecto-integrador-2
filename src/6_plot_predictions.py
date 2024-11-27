@@ -41,7 +41,7 @@ def unscale_data(scaler, predictions):
 def create_plots(root, val, predictions, name):
     # Gráfico de las predicciones vs valores reales en el conjunto de test del modelo con mejores parametros
     fig = go.Figure()
-    trace1 = go.Scatter(x=val.index, y=val['target'], name="Real", mode="lines")
+    trace1 = go.Scatter(x=val.index, y=val['target'], name="Real", mode="lines", line_color='#5F70EB')
     trace2 = go.Scatter(x=predictions.index, y=predictions['target'], name="Estimado", mode="lines", line_color="#4EA72E")
     fig.add_trace(trace1)
     fig.add_trace(trace2)
@@ -75,6 +75,9 @@ def main():
     sarimax = unscale_data(scaler, sarimax)
     lgbm = unscale_data(scaler, lgbm)
     lstm = unscale_data(scaler, lstm)
+
+    # Test unscale a single value
+    print(scaler.inverse_transform([[0.115978, 0,0,0,0,0,0,0,0,0,0]]))
 
     create_plots(root, val, sarimax, 'SARIMAX')
     create_plots(root, val, lgbm, 'LGBM')
