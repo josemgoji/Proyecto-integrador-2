@@ -88,7 +88,7 @@ def backtesting(data, end_val, forecaster, levels):
     cv = TimeSeriesFold(
         steps=forecaster.max_step,
         initial_train_size=len(data.loc[:end_val, :]),
-        refit=False,
+        refit=True,
     )
     metrics, predictions = backtesting_forecaster_multiseries(
         forecaster=forecaster,
@@ -127,7 +127,7 @@ def main():
     recurrent_units = [128, 64]
     dense_units = [64, 32]
     learning_rate = 0.01
-    epochs = 8
+    epochs = 4
     batch_size = 64
     
     model = create_model(data_train, levels, lags, steps, recurrent_units, dense_units, learning_rate)
