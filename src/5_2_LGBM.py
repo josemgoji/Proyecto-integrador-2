@@ -35,6 +35,7 @@ from skforecast.recursive import ForecasterEquivalentDate
 from skforecast.recursive import ForecasterRecursive
 from skforecast.direct import ForecasterDirect
 from skforecast.model_selection import bayesian_search_forecaster
+from skforecast.model_selection import random_search_forecaster
 from skforecast.model_selection import backtesting_forecaster
 from skforecast.feature_selection import select_features
 from skforecast.model_selection import TimeSeriesFold
@@ -108,6 +109,62 @@ def hyperparametros_search(datos, forecaster, fin_train,exog_cols):
     backtesting_metric = resultados_busqueda.at[0, 'mean_squared_error']
     
   
+    return best_params, backtesting_metric
+
+def hyperparametros_random_search(datos, forecaster, fin_train,exog_cols):
+    ## lags grid
+    lags_grid = [24, 48, 72]
+    
+    ## grid
+    param_distributions = {
+        # Número de estimadores (n_estimators)
+        'n_estimators': np.arange(start=500, stop=5000, step=500, dtype=int),  # Entre 500 y 5000, en pasos de 500
+
+        # Tasa de aprendizaje (learning_rate)
+        'learning_rate': np.arange(start=0.01, stop=0.5, step=0.005, dtype=float),  # Entre 0.01 y 0.5, en pasos de 0.05
+
+        # Profundidad máxima de los árboles (max_depth)
+        'max_depth': np.arange(start=3, stop=18, step=2, dtype=int),  # Entre 3 y 18, en pasos de 2
+
+        # Regularización L1 (reg_alpha) y L2 (reg_lambda)
+        'reg_alpha': np.arange(start=0.0, stop=1.1, step=0.1, dtype=float),  # Entre 0 y 1, en pasos de 0.1
+        'reg_lambda': np.arange(start=0.0, stop=1.1, step=0.1, dtype=float),  # Entre 0 y 1, en pasos de 0.1
+
+        # Submuestreo (subsample) y fracción de características (colsample_bytree)
+        'subsample': np.arange(start=0.5, stop=1.05, step=0.1, dtype=float),  # Entre 0.5 y 1.0, en pasos de 0.1
+        'colsample_bytree': np.arange(start=0.5, stop=1.05, step=0.1, dtype=float),  # Entre 0.5 y 1.0, en pasos de 0.1
+
+        # Peso mínimo por hoja (min_child_weight)
+        'min_child_weight': np.arange(start=1, stop=11, step=1, dtype=int),  # Entre 1 y 10, en pasos de 1
+    }
+    
+    # Folds
+    cv = TimeSeriesFold(
+         steps              = 24,
+         initial_train_size = len(datos.loc[:fin_train]),
+         refit              = False,
+         )
+    ## randoms search
+    results = random_search_forecaster(
+              forecaster          = forecaster,
+              y                   = datos['target'],
+              exog                = datos[exog_cols],
+              lags_grid           = lags_grid,
+              param_distributions = param_distributions,
+              cv                  = cv,
+              n_iter              = 100,
+              metric              = 'mean_squared_error',
+              return_best         = True,
+              random_state        = 42,
+              n_jobs              = 'auto',
+              verbose             = False,
+              show_progress       = True
+          )
+    
+    best_params = results.at[0, 'params']
+    best_params = best_params | {'random_state': 15926, 'verbose': -1}
+    backtesting_metric = results.at[0, 'mean_squared_error']
+    
     return best_params, backtesting_metric
 
 
@@ -246,7 +303,7 @@ def main():
     
     forecaster = define_forecaster()
     
-    best_params, backtesting_metric = hyperparametros_search(datos_exog, forecaster, fin_train, exog_cols)
+    best_params, backtesting_metric = hyperparametros_random_search(datos_exog, forecaster, fin_train, exog_cols)
     
     lags_select, exog_select = feature_selection(datos_exog, forecaster, exog_cols)
     
