@@ -48,8 +48,9 @@ def load_datasets():
 def create_forecaster(train, series, p, d, q, P, D, Q, m):
     forecaster = ForecasterSarimax(
         regressor=Sarimax(
-            order=(p, d, q),
-            seasonal_order=(P, D, Q, m),
+            order=(1, 0, 0),
+            seasonal_order=(0, 0, 0, 0),
+            trend='c',
             maxiter=500),
     )
     forecaster.fit(
@@ -90,7 +91,7 @@ def main():
     data_train = train[series].copy()
     
     p, d, q = 2, 1, 1
-    P, D, Q = 0, 0, 0, 0
+    P, D, Q = 0, 0, 0
     m = 0
 
     forecaster = create_forecaster(data_train, series, p, d, q, P, D, Q, m)
