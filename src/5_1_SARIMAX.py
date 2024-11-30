@@ -97,6 +97,7 @@ def main():
     forecaster = create_forecaster(data_train, series, p, d, q, P, D, Q, m)
     metrica, predicciones = backtesting(data, data_train, forecaster, m)
     print(metrica)
+    predicciones.rename(columns={'pred': 'target'}, inplace=True)
     predicciones.to_pickle(root.DIR_DATA_ANALYTICS + 'SARIMAX_predictions_val.pkl')
 
 
