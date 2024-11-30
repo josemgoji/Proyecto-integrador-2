@@ -15,7 +15,7 @@ def load_datasets():
     import root
 
     train = pd.read_pickle(root.DIR_DATA_STAGE + 'train_preprocessed.pkl')
-    sarimax = pd.read_pickle(root.DIR_DATA_ANALYTICS + 'LSTM_predictions_val.pkl')
+    sarimax = pd.read_pickle(root.DIR_DATA_ANALYTICS + 'SARIMAX_predictions_val.pkl')
     lgbm = pd.read_pickle(root.DIR_DATA_ANALYTICS + 'LGBM_predictions_val.pkl')
     lstm = pd.read_pickle(root.DIR_DATA_ANALYTICS + 'LSTM_predictions_val.pkl')
     return root, train, sarimax, lgbm, lstm
@@ -43,8 +43,8 @@ def create_plots(root, val, predictions, name):
     fig = go.Figure()
     trace1 = go.Scatter(x=val.index, y=val['target'], name="Real", mode="lines", line_color='#5F70EB')
     trace2 = go.Scatter(x=predictions.index, y=predictions['target'], name="Estimado", mode="lines", line_color="#4EA72E")
-    fig.add_trace(trace1)
     fig.add_trace(trace2)
+    fig.add_trace(trace1)
     fig.update_layout(
         xaxis_title="Fecha",
         yaxis_title="Producción (kWh)",
