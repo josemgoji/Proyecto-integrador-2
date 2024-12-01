@@ -59,7 +59,7 @@ def create_plots(root, val, predictions, name):
             y=0.99
         )
     )
-    fig.write_image(root.DIR_DATA_ANALYTICS + f'{name}_pred_vs_real.png', width=750, height=350)
+    fig.write_html(root.DIR_DATA_ANALYTICS + f'{name}_pred_vs_real.html')
 
 
 

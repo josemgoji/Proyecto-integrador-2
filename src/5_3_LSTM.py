@@ -96,7 +96,7 @@ def backtesting(data, end_val, forecaster, levels):
         levels=forecaster.levels,
         cv=cv,
         metric=root_mean_squared_error,
-        verbose=False,
+        verbose=True,
     )
     return metrics, predictions
 
