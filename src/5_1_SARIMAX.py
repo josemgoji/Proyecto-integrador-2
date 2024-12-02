@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import root_mean_squared_error
+import plotly.graph_objects as go
 
 # statsmodels
 import statsmodels
@@ -22,7 +23,7 @@ from skforecast.recursive import ForecasterSarimax
 from skforecast.model_selection import TimeSeriesFold
 from skforecast.model_selection import backtesting_sarimax
 from skforecast.model_selection import grid_search_sarimax
-
+from skforecast.utils import save_forecaster
 import warnings
 warnings.filterwarnings('once')
 
@@ -62,7 +63,7 @@ def create_forecaster(train, series, p, d, q, P, D, Q, m):
 
 def backtesting(data, train, forecaster, steps):
     cv = TimeSeriesFold(
-        steps              = 24,
+        steps              = 7,
         initial_train_size = len(train),
         refit              = True,
     )
@@ -78,21 +79,35 @@ def backtesting(data, train, forecaster, steps):
     )
     return metrica, predicciones
 
+def save_model(forecaster,name):
+    current_dir = os.getcwd()
+    ROOT_PATH = os.path.dirname(current_dir)
+    sys.path.insert(1, ROOT_PATH)
+    import root
+    save_forecaster(
+    forecaster, 
+    file_name = root.DIR_DATA_ANALYTICS + name, 
+    save_custom_functions = False, 
+    verbose = False
+)
+
 
 def main():
     root, train = load_datasets()
     data = train.copy()
     end_val = '2022-08-31 23:59:59'
+    val = train.loc[end_val:]
     train = train.loc[:end_val]
+    
 
     series = ['target', 'temperature', 'rain', 'snowfall', 'surface_pressure', 'cloudcover_total', 'windspeed_10m', 'winddirection_10m', 'shortwave_radiation', 'euros_per_mwh', 'installed_capacity'] 
 
     data = data[series].copy()
     data_train = train[series].copy()
     
-    p, d, q = 2, 1, 1
-    P, D, Q = 0, 0, 0
-    m = 0
+    p, d, q = 1, 1, 1
+    P, D, Q = 0, 1, 1
+    m = 24
 
     forecaster = create_forecaster(data_train, series, p, d, q, P, D, Q, m)
     metrica, predicciones = backtesting(data, data_train, forecaster, m)
@@ -100,6 +115,23 @@ def main():
     predicciones.rename(columns={'pred': 'target'}, inplace=True)
     predicciones.to_pickle(root.DIR_DATA_ANALYTICS + 'SARIMAX_predictions_val.pkl')
 
+    save_model(forecaster, 'SARIMAX_model')
+
+
+    fig = go.Figure()
+    trace1 = go.Scatter(x=val.index, y=val['target'], name="real", mode="lines",line_color="#4EA72E")
+    trace2 = go.Scatter(x=predicciones.index, y=predicciones['target'], name="predicción", mode="lines")
+    fig.add_trace(trace1)
+    fig.add_trace(trace2)
+    fig.update_layout(
+        title="Predicción vs valores reales en test",
+        yaxis_title="Generación (kWh)",
+        width=600,
+        height=370,
+        margin=dict(l=20, r=20, t=35, b=20),
+        legend=dict(orientation="h", yanchor="top", y=1.01, xanchor="left", x=0)
+    )
+    fig.show()
 
 if __name__ == "__main__":
     main()

@@ -43,8 +43,9 @@ def create_plots(root, val, predictions, name):
     fig = go.Figure()
     trace1 = go.Scatter(x=val.index, y=val['target'], name="Real", mode="lines", line_color='#5F70EB')
     trace2 = go.Scatter(x=predictions.index, y=predictions['target'], name="Estimado", mode="lines", line_color="#4EA72E")
-    fig.add_trace(trace2)
     fig.add_trace(trace1)
+    fig.add_trace(trace2)
+    
     fig.update_layout(
         xaxis_title="Fecha",
         yaxis_title="Producción (kWh)",
@@ -77,7 +78,7 @@ def main():
     lstm = unscale_data(scaler, lstm)
 
     # Test unscale a single value
-    print(scaler.inverse_transform([[0.115978, 0,0,0,0,0,0,0,0,0,0]]))
+    print(scaler.inverse_transform([[0.264434, 0,0,0,0,0,0,0,0,0,0]]))
 
     create_plots(root, val, sarimax, 'SARIMAX')
     create_plots(root, val, lgbm, 'LGBM')

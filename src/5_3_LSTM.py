@@ -88,7 +88,7 @@ def backtesting(data, end_val, forecaster, levels):
     cv = TimeSeriesFold(
         steps=forecaster.max_step,
         initial_train_size=len(data.loc[:end_val, :]),
-        refit=True,
+        refit=False,
     )
     metrics, predictions = backtesting_forecaster_multiseries(
         forecaster=forecaster,
@@ -96,7 +96,7 @@ def backtesting(data, end_val, forecaster, levels):
         levels=forecaster.levels,
         cv=cv,
         metric=root_mean_squared_error,
-        verbose=True,
+        verbose=False,
     )
     return metrics, predictions
 
@@ -136,7 +136,20 @@ def main():
     training_history_plot(root, forecaster)
     predictions.to_pickle(root.DIR_DATA_ANALYTICS + 'LSTM_predictions_val.pkl')
 
-
+    fig = go.Figure()
+    trace1 = go.Scatter(x=val.index, y=val['target'], name="real", mode="lines",line_color="#4EA72E")
+    trace2 = go.Scatter(x=predictions.index, y=predictions['target'], name="predicción", mode="lines")
+    fig.add_trace(trace1)
+    fig.add_trace(trace2)
+    fig.update_layout(
+        title="Predicción vs valores reales en test",
+        yaxis_title="Generación (kWh)",
+        width=600,
+        height=370,
+        margin=dict(l=20, r=20, t=35, b=20),
+        legend=dict(orientation="h", yanchor="top", y=1.01, xanchor="left", x=0)
+    )
+    fig.show()
 
 if __name__ == "__main__":
     main()
